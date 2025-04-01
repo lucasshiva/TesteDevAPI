@@ -10,7 +10,7 @@ using MinhaApiComSQLite.Data;
 namespace MinhaApiComSQLite.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241125145949_InitialCreate")]
+    [Migration("20250331000857_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -19,26 +19,22 @@ namespace MinhaApiComSQLite.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
 
-            modelBuilder.Entity("MinhaApiComSQLite.Models.Produto", b =>
+            modelBuilder.Entity("MinhaApiComSQLite.Models.Product", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Descricao")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("Preco")
+                    b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Produtos");
+                    b.ToTable("Products");
                 });
 #pragma warning restore 612, 618
         }

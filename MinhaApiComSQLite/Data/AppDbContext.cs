@@ -1,14 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MinhaApiComSQLite.Models;
 
-namespace MinhaApiComSQLite.Data
+namespace MinhaApiComSQLite.Data;
+
+public class AppDbContext : DbContext
 {
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options) { }
 
-    public class AppDbContext : DbContext
-    {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-        public DbSet<Produto> Produtos { get; set; }
-    }
-
+    public DbSet<Product> Products { get; set; }
+    public DbSet<Category> Categories { get; set; }
 }
