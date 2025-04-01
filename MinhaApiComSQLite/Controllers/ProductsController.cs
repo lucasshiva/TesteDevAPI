@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using MinhaApiComSQLite.DTOs;
 using MinhaApiComSQLite.Extensions;
+using MinhaApiComSQLite.Models;
 using MinhaApiComSQLite.Services;
 
 namespace MinhaApiComSQLite.Controllers;
@@ -57,14 +58,20 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateProduct(CreateProductDto createProductDto)
     {
-        var validationResult = _validator.Validate(createProductDto);
+        var validationResult = await _validator.ValidateAsync(createProductDto);
         if (!validationResult.IsValid)
         {
             validationResult.AddToModelState(ModelState);
             return BadRequest(ModelState);
         }
 
-        var result = await _productService.CreateAsync(createProductDto);
+        var product = new Product(
+            createProductDto.Name,
+            createProductDto.Price,
+            createProductDto.CategoryId
+        );
+
+        var result = await _productService.CreateAsync(product);
         if (result.IsError)
         {
             foreach (var error in result.Errors)
@@ -74,6 +81,7 @@ public class ProductsController : ControllerBase
         }
 
         var createdProduct = result.Value;
+
         var productDto = new ProductDto
         {
             Id = createdProduct.Id,
@@ -86,5 +94,14 @@ public class ProductsController : ControllerBase
             },
         };
         return CreatedAtAction(nameof(GetProduct), new { id = productDto.Id }, productDto);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteProduct(int id)
+    {
+        var deleted = await _productService.DeleteAsync(id);
+        if (!deleted)
+            return NotFound();
+        return NoContent();
     }
 }

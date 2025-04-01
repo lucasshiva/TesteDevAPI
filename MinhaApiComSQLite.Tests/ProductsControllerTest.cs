@@ -14,18 +14,17 @@ public class ProductsControllerTest
     private readonly ProductsController _controller;
     private readonly Mock<ICategoryRepository> _mockCategoryRepository;
     private readonly Mock<IProductRepository> _mockProductRepository;
-    private readonly IProductService _productService;
 
     public ProductsControllerTest()
     {
         var validator = new CreateProductDtoValidator();
         _mockProductRepository = new Mock<IProductRepository>();
         _mockCategoryRepository = new Mock<ICategoryRepository>();
-        _productService = new ProductService(
+        IProductService productService = new ProductService(
             _mockProductRepository.Object,
             _mockCategoryRepository.Object
         );
-        _controller = new ProductsController(_productService, validator);
+        _controller = new ProductsController(productService, validator);
     }
 
     [Fact]
@@ -34,12 +33,9 @@ public class ProductsControllerTest
         // Arrange
         List<Product> fakeProducts =
         [
-            new()
+            new("Primeiro produto", 10M, 2)
             {
                 Id = 1,
-                Name = "Primeiro produto",
-                Price = 10M,
-                CategoryId = 2,
                 Category = new Category { Id = 2, Name = "Technology" },
             },
         ];
@@ -84,12 +80,9 @@ public class ProductsControllerTest
         _mockProductRepository
             .Setup(r => r.GetByIdAsync(productId))
             .ReturnsAsync(
-                new Product
+                new Product("A valid name", 10M, fakeCategory.Id)
                 {
                     Id = productId,
-                    Name = "A valid name",
-                    Price = 10m,
-                    CategoryId = fakeCategory.Id,
                     Category = fakeCategory,
                 }
             );
@@ -119,12 +112,9 @@ public class ProductsControllerTest
             CategoryId = fakeCategory.Id,
         };
 
-        var fakeProduct = new Product
+        var fakeProduct = new Product(dto.Name, dto.Price, fakeCategory.Id)
         {
             Id = 1,
-            Name = dto.Name,
-            Price = dto.Price,
-            CategoryId = fakeCategory.Id,
             Category = fakeCategory,
         };
 
@@ -168,31 +158,12 @@ public class ProductsControllerTest
     public async Task CreateProduct_ReturnsBadRequest_WhenNameIsInvalid(string name)
     {
         // Arrange
-        var dto = new CreateProductDto { Name = name, Price = 10m };
-
-        // Act
-        var actionResult = await _controller.CreateProduct(dto);
-
-        // Assert
-        var badRequestAction = Assert.IsType<BadRequestObjectResult>(actionResult);
-        Assert.Equal(400, badRequestAction.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateProduct_ReturnsBadRequest_WhenNameStartsWithLowercase()
-    {
-        // Arrange
-        var dto = new CreateProductDto { Name = "invalid name", Price = 10m };
-        var product = new Product
+        var dto = new CreateProductDto
         {
-            Id = 1,
-            Name = dto.Name,
-            Price = dto.Price,
-            CategoryId = dto.CategoryId,
+            Name = name,
+            Price = 10m,
+            CategoryId = 1,
         };
-
-        // List<Error> errors = [Error.Validation()];
-        // _mockProductRepository.Setup(s => s.CreateAsync(product)).ReturnsAsync(errors);
 
         // Act
         var actionResult = await _controller.CreateProduct(dto);
@@ -218,5 +189,45 @@ public class ProductsControllerTest
         // Assert
         var badRequestAction = Assert.IsType<BadRequestObjectResult>(actionResult);
         Assert.Equal(400, badRequestAction.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateProduct_CapitalizesFirstLetterInProductName_WhenSavingProductInDatabase()
+    {
+        // Arrange
+        var cat = new Category { Id = 1, Name = "Teste" };
+        var dto = new CreateProductDto
+        {
+            Name = "lower case name",
+            Price = 10M,
+            CategoryId = cat.Id,
+        };
+        // This is the product the service passed to the repository.
+        var productToSave = new Product("Lower case name", dto.Price, dto.CategoryId);
+        var createdProduct = new Product("Lower case name", dto.Price, dto.CategoryId)
+        {
+            Id = 2,
+            Category = cat,
+        };
+        _mockCategoryRepository.Setup(r => r.GetByIdAsync(cat.Id)).ReturnsAsync(cat);
+        _mockProductRepository.Setup(r => r.NameExists(It.IsAny<string>())).ReturnsAsync(false);
+
+        // Since Moq uses reference, we need to match the value manually.
+        _mockProductRepository
+            .Setup(r => r.CreateAsync(It.Is<Product>(p => p.Name == productToSave.Name)))
+            .ReturnsAsync(createdProduct);
+
+        // Act
+        var actionResult = await _controller.CreateProduct(dto);
+
+        // Assert
+        _mockProductRepository.Verify(r =>
+            r.CreateAsync(It.Is<Product>(p => p.Name == productToSave.Name))
+        );
+        Assert.NotNull(actionResult);
+        var objectResult = Assert.IsType<CreatedAtActionResult>(actionResult);
+        Assert.NotNull(objectResult.Value);
+        var product = Assert.IsType<ProductDto>(objectResult.Value);
+        Assert.NotNull(product.Category);
     }
 }

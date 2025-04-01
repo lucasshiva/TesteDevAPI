@@ -1,5 +1,5 @@
 using ErrorOr;
-using MinhaApiComSQLite.DTOs;
+using MinhaApiComSQLite.Extensions;
 using MinhaApiComSQLite.Models;
 using MinhaApiComSQLite.Repositories;
 
@@ -29,34 +29,30 @@ public class ProductService : IProductService
         return _productRepository.GetByIdAsync(id);
     }
 
-    public async Task<ErrorOr<Product>> CreateAsync(CreateProductDto dto)
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var product = await _productRepository.GetByIdAsync(id);
+        if (product == null)
+            return false;
+        await _productRepository.DeleteAsync(product);
+        return true;
+    }
+
+    public async Task<ErrorOr<Product>> CreateAsync(Product product)
     {
         List<Error> errors = [];
 
-        if (!char.IsUpper(dto.Name[0]))
-            errors.Add(
-                Error.Validation(description: "Product name must start with an uppercase letter.")
-            );
+        product.Name = product.Name.CapitalizeFirstLetter();
 
-        if (decimal.IsNegative(dto.Price))
-            errors.Add(Error.Validation(description: "Price must be greater than zero."));
-
-        if (await _productRepository.NameExists(dto.Name))
+        if (await _productRepository.NameExists(product.Name))
             errors.Add(Error.Validation(description: "Product name must be unique"));
 
-        var category = await _categoryRepository.GetByIdAsync(dto.CategoryId);
+        var category = await _categoryRepository.GetByIdAsync(product.CategoryId);
         if (category == null)
             errors.Add(Error.Validation(description: "Category doesn't exist"));
 
         if (errors.Count > 0)
             return errors;
-
-        var product = new Product
-        {
-            Name = dto.Name,
-            Price = dto.Price,
-            CategoryId = dto.CategoryId,
-        };
 
         try
         {
@@ -67,14 +63,5 @@ public class ProductService : IProductService
             errors.Add(Error.Unexpected(description: e.Message));
             return errors;
         }
-    }
-
-    public async Task<bool> DeleteAsync(int id)
-    {
-        var product = await _productRepository.GetByIdAsync(id);
-        if (product == null)
-            return false;
-        await _productRepository.DeleteAsync(product);
-        return true;
     }
 }
